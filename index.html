@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Blue Ocean Conservancy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=EB+Garamond:ital,wght@0,400;1,400&family=Inter+Tight:wght@300;400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --parchment:  #ede5d0;
+      --sand:       #dfd0b4;
+      --ink:        #1e2330;
+      --ink-light:  #2c3245;
+      --ink-fg:     #ede5d0;
+      --sea:        #18696e;
+      --sea-light:  #5bbfc4;
+      --amber:      #c9963a;
+      --muted:      rgba(30,35,48,0.48);
+      --muted-inv:  rgba(237,229,208,0.55);
+      --border:     rgba(30,35,48,0.1);
+      --border-inv: rgba(237,229,208,0.1);
+    }
+
+    html { scroll-behavior: auto; }
+
+    body {
+      background: var(--parchment);
+      color: var(--ink);
+      font-family: 'EB Garamond', Georgia, serif;
+      font-size: 1.0625rem;
+      line-height: 1.72;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    /* ─────────────────────────────────────────
+       FILM GRAIN — static SVG noise + CSS translate
+       (no JS repaints; transform is GPU-only)
+    ───────────────────────────────────────── */
+    #grain {
+      position: fixed;
+      inset: -150px;
+      pointer-events: none;
+      z-index: 9998;
+      opacity: 0.055;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 256px 256px;
+      animation: grainShift 0.14s steps(1) infinite;
+      will-change: transform;
+    }
+    @keyframes grainShift {
+      0%   { transform: translate(0px, 0px); }
+      14%  { transform: translate(-10px, 14px); }
+      28%  { transform: translate(16px, -8px); }
+      42%  { transform: translate(-12px, 20px); }
+      57%  { transform: translate(18px, -16px); }
+      71%  { transform: translate(-8px, 10px); }
+      85%  { transform: translate(14px, -12px); }
+      100% { transform: translate(-6px, 16px); }
+    }
+
+    /* ─────────────────────────────────────────
+       LETTERBOX BARS
+    ───────────────────────────────────────── */
+    .lb {
+      position: fixed;
+      left: 0;
+      right: 0;
+      height: 10vh;
+      background: #000;
+      z-index: 90;
+      pointer-events: none;
+      transform: scaleY(0);
+      will-change: transform;
+    }
+    .lb-top { top: 0; transform-origin: top; }
+    .lb-bot { bottom: 0; transform-origin: bottom; }
+
+    /* ─────────────────────────────────────────
+       LOADING
+    ───────────────────────────────────────── */
+    #loader {
+      position: fixed;
+      inset: 0;
+      background: var(--ink);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.5rem;
+      z-index: 9999;
+      transition: opacity 1.2s ease;
+    }
+    #loader.gone { opacity: 0; pointer-events: none; }
+    .loader-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 300;
+      font-size: 1rem;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      color: var(--ink-fg);
+      opacity: 0.7;
+    }
+    .loader-bar  { width: 120px; height: 1px; background: rgba(237,229,208,0.15); }
+    .loader-fill { height: 100%; width: 0%; background: var(--sea-light); transition: width 0.15s linear; }
+
+    /* ─────────────────────────────────────────
+       NAV
+    ───────────────────────────────────────── */
+    .site-nav {
+      position: fixed;
+      inset-x: 0;
+      top: 0;
+      z-index: 80;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 3rem;
+      height: 68px;
+      transition: background 0.4s, border-color 0.4s, color 0.4s;
+      color: var(--ink-fg);
+    }
+    .site-nav.scrolled {
+      background: rgba(237,229,208,0.97);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+      color: var(--ink);
+    }
+    .nav-brand {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 300;
+      font-size: 1.05rem;
+      letter-spacing: 0.02em;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.15;
+    }
+    .nav-brand small {
+      font-family: 'Inter Tight', sans-serif;
+      font-size: 0.55rem;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      opacity: 0.55;
+      margin-top: 2px;
+    }
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+      list-style: none;
+    }
+    .nav-links a {
+      font-family: 'Inter Tight', sans-serif;
+      font-size: 0.72rem;
+      letter-spacing: 0.06em;
+      text-decoration: none;
+      color: inherit;
+      opacity: 0.65;
+      transition: opacity 0.2s;
+    }
+    .nav-links a:hover { opacity: 1; }
+    .nav-cta {
+      font-family: 'Inter Tight', sans-serif;
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      text-decoration: none;
+      padding: 0.55rem 1.5rem;
+      border: 1px solid currentColor;
+      color: inherit;
+      opacity: 0.85;
+      transition: background 0.25s, color 0.25s, opacity 0.25s;
+    }
+    .nav-cta:hover { opacity: 1; }
+    .site-nav.scrolled .nav-cta:hover { background: var(--ink); color: var(--parchment); }
+    @media (max-width: 768px) { .nav-links { display: none; } }
+
+    /* ─────────────────────────────────────────
+       HERO
+    ───────────────────────────────────────── */
+    .hero {
+      position: relative;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .hero-video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      /* no CSS filter — gradient overlays handle darkening */
+    }
+    .hero-grade {
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(to bottom, rgba(14,28,42,0.6) 0%, rgba(14,28,42,0.2) 45%, rgba(14,28,42,0.7) 100%),
+        radial-gradient(ellipse at 50% 40%, transparent 25%, rgba(10,20,35,0.65) 100%);
+    }
+    /* Teal color cast — plain rgba, no mix-blend-mode */
+    .hero-tint {
+      position: absolute;
+      inset: 0;
+      background: rgba(12, 55, 75, 0.22);
+      pointer-events: none;
+    }
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      color: var(--ink-fg);
+      text-align: center;
+      padding: 0 2rem;
+      max-width: 900px;
+    }
+    .hero-eyebrow {
+      font-family: 'Inter Tight', sans-serif;
+      font-size: 0.62rem;
+      letter-spacing: 0.38em;
+      text-transform: uppercase;
+      opacity: 0.6;
+      margin-bottom: 2rem;
+    }
+    .hero-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 300;
+      font-size: clamp(4rem, 10vw, 9rem);
+      line-height: 0.95;
+      letter-spacing: -0.02em;
+      margin-bottom: 2.5rem;
+    }
+    .hero-tagline {
+      font-family: 'EB Garamond', serif;
+      font-style: italic;
+      font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+      opacity: 0.85;
+      line-height: 1.5;
+      margin-bottom: 3rem;
+    }
+    .hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    .btn-ghost {
+      font-family: 'Inter Tight', sans-serif;
+      font-size: 0.68rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      text-decoration: none;
+      padding: 0.8rem 2.2rem;
+      border: 1px solid rgba(237,229,208,0.6);
+      color: var(--ink-fg);
+      transition: background 0.3s, border-color 0.3s;
+    }
+    .btn-ghost:hover { background: rgba(237,229,208,0.1); border-color: var(--ink-fg); }
+    .btn-fill {
+      font-family: 'Inter Tight', sans-serif;
+      font-size: 0.68rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      text-decoration: none;
+      padding: 0.8rem 2.2rem;
+      background: var(--ink-fg);
+      color: var(--ink);
+      transition: opacity 0.25s;
+    }
+    .btn-fill:hover { opacity: 0.88; }
+    .scroll-cue {
+      position: absolute;
+      bottom: 2.75rem;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.75rem;
+      color: var(--ink-fg);
+      opacity: 0.4;
+    }
+    .scroll-cue span {
+      font-family: 'Inter Tight', sans-serif;
+      font-size: 0.55rem;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+    }
+    .scroll-needle {
+      width: 1px;
+      height: 48px;
+      background: linear-gradient(to bottom, currentColor, transparent);
+      animation: needle 2.4s ease-in-out infinite;
+    }
+    @keyframes needle {
+      0%, 100% { opacity: 0; transform: scaleY(0.1); transform-origin: top; }
+      55%       { opacity: 1; transform: scaleY(1);   transform-origin: top; }
+    }
+
+    /* ─────────────────────────────────────────
+       PINNED SCROLL SCRUB
+    ───────────────────────────────────────── */
+    .pin-wrap {
+      position: relative;
+      height: 100vh;
+      will-change: transform;
+    }
+    .scrub-video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      /* no CSS filter — the overlay layers handle the grade */
+    }
+    /* Cinematic color grade */
+    .pin-grade {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .pin-grade::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(8, 50, 68, 0.28);
+      /* plain rgba — no mix-blend-mode compositor cost */
+    }
+    .pin-grade::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 50% 50%, transparent 20%, rgba(4,10,20,0.75) 100%),
+        linear-gradient(to bottom, rgba(4,10,20,0.45) 0%, transparent 35%, transparent 65%, rgba(4,10,20,0.55) 100%);
+    }
+
+    /* Overlay texts */
+    .pin-texts {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2;
+    }
+    .ot {
+      position: absolute;
+      text-align: center;
+      padding: 0 2.5rem;
+      max-width: 820px;
+      color: var(--ink-fg);
+      opacity: 0;
+      will-change: transform, opacity;
+    }
+    .ot-label {
+      font-family: 'Inter Tight', sans-serif;
+      font-size: 0.58rem;
+      letter-spacing: 0.4em;
+      text-transform: uppercase;
+      color: var(--sea-light);
+      margin-bottom: 1.4rem;
+    }
+    .ot-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 300;
+      font-size: clamp(3rem, 8vw, 7.5rem);
+      line-height: 1.0;
+      letter-spacing: -0.02em;
+    }
+    .ot-title em { font-style: italic; }
+    .ot-sub {
+      margin-top: 1.25rem;
+      font-family: 'EB Garamond', serif;
+      font-style: italic;
+      font-size: clamp(1rem, 2vw, 1.25rem);
+      opacity: 0.65;
+      line-height: 1.65;
+    }
+
+    /* Progress line */
+    .pin-progress {
+      position: absolute;
+      bottom: 3.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 3;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .pin-progress-track {
+      width: 80px;
+      height: 1px;
+      background: rgba(237,229,208,0.18);
+    }
+    .pin-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--sea-light);
+    }
+    .pin-progress-label {
+      font-family: 'Inter Tight', sans-serif;
+      font-size: 0.55rem;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--ink-fg);
+      opacity: 0.35;
+    }
+
+    /* ─────────────────────────────────────────
+       EDITORIAL SECTIONS (parchment)
+    ───────────────────────────────────────── */
+    .section {
+      padding: 7rem 3rem;
+    }
+    .section-inner { max-width: 74rem; margin: 0 auto; }
+
+    /* ink / charcoal sections */
+    .section-ink {
+      background: var(--ink);
+      color: var(--ink-fg);
+    }
+    .section-ink .eyebrow { color: var(--sea-light); }
+
+    .eyebrow {
+      font-family: 'Inter Tight', sans-serif;
+      font-size: 0.62rem;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      font-weight: 500;
+      color: var(--sea);
+    }
+
+    /* ─────────────────────────────────────────
+       NARRATIVE BAND
+    ───────────────────────────────────────── */
+    .narrative {
+      background: var(--ink-light);
+      color: var(--ink-fg);
+      padding: 7rem 3rem;
+    }
+    .narrative-inner {
+      max-width: 74rem;
+      margin: 0 auto;
+      display: grid;
+      gap: 4rem;
+      align-items: start;
+    }
+    @media (min-width: 800px) { .narrative-inner { grid-template-columns: 1fr 1fr; } }
+    .narrative p { font-size: 1.05rem; line-height: 1.82; }
+    .narrative p + p { margin-top: 1.4rem; opacity: 0.72; }
+    .narrative-link {
+      display: inline-block;
+      margin-top: 2.5rem;
+      font-family: 'Inter Tight', sans-serif;
+      font-size: 0.72rem;
+      letter-spacing: 0.12em;
+      color: var(--sea-light);
+      text-decoration: none;
+      border-bottom: 1px solid currentColor;
+      padding-bottom: 2px;
+      transition: opacity 0.2s;
+    }
+    .narrative-link:hover { opacity: 0.75; }
+
+    /* ─────────────────────────────────────────
+       PROBLEM CARDS
+    ───────────────────────────────────────── */
+    .problem-grid {
+      display: grid;
+      gap: 2rem;
+    }
+    @media (min-width: 768px) { .problem-grid { grid-template-columns: repeat(3, 1fr); } }
+    .problem-card {
+      border-top: 2px solid rgba(30,35,48,0.55);
+      padding: 2rem 0 0;
+    }
+    .problem-card h3 {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 400;
+      font-size: 1.9rem;
+      line-height: 1.15;
+      margin-bottom: 0.9rem;
+    }
+    .problem-card p {
+      font-size: 0.88rem;
+      color: var(--muted);
+      line-height: 1.78;
+    }
+    .card-link {
+      display: inline-block;
+      margin-top: 1.5rem;
+      font-family: 'Inter Tight', sans-serif;
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      color: var(--sea);
+      text-decoration: none;
+      border-bottom: 1px solid var(--sea);
+      padding-bottom: 2px;
+    }
+
+    /* ─────────────────────────────────────────
+       STATS GRID
+    ───────────────────────────────────────── */
+    .stats-grid {
+      display: grid;
+      gap: 3rem 2rem;
+    }
+    @media (min-width: 600px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (min-width: 900px) { .stats-grid { grid-template-columns: repeat(3, 1fr); } }
+    .stat-card { border-top: 1px solid var(--border-inv); padding-top: 1.75rem; }
+    .stat-num {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 300;
+      font-size: 4.5rem;
+      line-height: 1;
+      color: var(--sea-light);
+      letter-spacing: -0.03em;
+    }
+    .stat-label {
+      margin-top: 0.5rem;
+      font-family: 'Inter Tight', sans-serif;
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      opacity: 0.55;
+      line-height: 1.45;
+    }
+
+    /* ─────────────────────────────────────────
+       PROGRAMS
+    ───────────────────────────────────────── */
+    .programs { border-top: 1px solid var(--border); }
+    .programs-hd { padding: 5rem 3rem 0; max-width: 74rem; margin: 0 auto; }
+    .programs-hd h2 {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 300;
+      font-size: clamp(2.5rem, 5vw, 4rem);
+      margin-top: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+    .programs-hd p { max-width: 520px; color: var(--muted); font-size: 0.9rem; line-height: 1.75; padding-bottom: 3rem; }
+    .program-row {
+      position: relative;
+      height: 28rem;
+      display: flex;
+      align-items: flex-end;
+      border-top: 1px solid var(--border);
+      overflow: hidden;
+      cursor: pointer;
+    }
+    .program-bg {
+      position: absolute;
+      inset: 0;
+      transition: transform 0.8s ease;
+    }
+    .program-row:hover .program-bg { transform: scale(1.05); }
+    .program-scrim {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, rgba(14,20,32,0.88) 0%, rgba(14,20,32,0.3) 55%, transparent 100%);
+    }
+    .program-body {
+      position: relative;
+      z-index: 1;
+      max-width: 74rem;
+      width: 100%;
+      margin: 0 auto;
+      padding: 0 3rem 3.5rem;
+      color: var(--ink-fg);
+    }
+    .program-body .eyebrow { color: rgba(237,229,208,0.55); margin-bottom: 0.6rem; }
+    .program-body h3 {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 300;
+      font-size: clamp(2.2rem, 4vw, 3.5rem);
+      margin-bottom: 0.75rem;
+      line-height: 1.05;
+    }
+    .program-body p { max-width: 540px; font-size: 0.88rem; opacity: 0.78; line-height: 1.7; }
+    .prog-1 { background: linear-gradient(160deg, #072c40 0%, #0f5a78 60%, #083550 100%); }
+    .prog-2 { background: linear-gradient(160deg, #0d2c18 0%, #1e5e30 60%, #0f3520 100%); }
+    .prog-3 { background: linear-gradient(160deg, #0a1e38 0%, #15426e 60%, #0c2540 100%); }
+    .prog-4 { background: linear-gradient(160deg, #08182e 0%, #12386a 60%, #0a2040 100%); }
+    .prog-5 { background: linear-gradient(160deg, #0c2030 0%, #185a6a 60%, #0e2c3a 100%); }
+
+    /* ─────────────────────────────────────────
+       PULL QUOTE
+    ───────────────────────────────────────── */
+    .pullquote {
+      position: relative;
+      min-height: 68vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .pq-bg {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(160deg, #07181e 0%, #0d3545 50%, #091e2c 100%);
+    }
+    .pq-vignette {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 50% 50%, transparent 30%, rgba(4,10,18,0.6) 100%);
+    }
+    .pq-content {
+      position: relative;
+      z-index: 1;
+      max-width: 700px;
+      padding: 5rem 3rem;
+      text-align: center;
+      color: var(--ink-fg);
+    }
+    .pq-rule {
+      width: 36px;
+      height: 1px;
+      background: var(--sea-light);
+      margin: 0 auto 2.5rem;
+      opacity: 0.6;
+    }
+    .pq-content blockquote {
+      font-family: 'EB Garamond', serif;
+      font-style: italic;
+      font-size: clamp(1.5rem, 3.5vw, 2.4rem);
+      line-height: 1.5;
+      margin-bottom: 2rem;
+    }
+    .pq-content cite {
+      font-family: 'Inter Tight', sans-serif;
+      font-size: 0.62rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      opacity: 0.42;
+      font-style: normal;
+    }
+
+    /* ─────────────────────────────────────────
+       KPIs
+    ───────────────────────────────────────── */
+    .kpi-grid {
+      display: grid;
+      gap: 2.5rem 2rem;
+    }
+    @media (min-width: 600px)  { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (min-width: 1000px) { .kpi-grid { grid-template-columns: repeat(3, 1fr); } }
+    .kpi-card { border-top: 1px solid var(--border-inv); padding-top: 1.75rem; }
+    .kpi-num {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 300;
+      font-size: 3rem;
+      color: var(--sea-light);
+      line-height: 1;
+      margin-bottom: 0.5rem;
+    }
+    .kpi-lbl { font-size: 0.9rem; line-height: 1.5; margin-bottom: 0.4rem; }
+    .kpi-note { font-size: 0.78rem; opacity: 0.45; line-height: 1.6; font-style: italic; }
+
+    /* ─────────────────────────────────────────
+       CTA
+    ───────────────────────────────────────── */
+    .cta {
+      padding: 8rem 3rem;
+      text-align: center;
+      border-top: 1px solid var(--border);
+    }
+    .cta h2 {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 300;
+      font-size: clamp(2.8rem, 6vw, 5.5rem);
+      line-height: 1.06;
+      margin-bottom: 1.75rem;
+    }
+    .cta h2 em { font-style: italic; color: var(--sea); }
+    .cta p { max-width: 440px; margin: 0 auto 3rem; color: var(--muted); font-size: 0.9rem; line-height: 1.82; }
+    .btn-border {
+      display: inline-block;
+      font-family: 'Inter Tight', sans-serif;
+      font-size: 0.7rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      text-decoration: none;
+      padding: 0.9rem 2.75rem;
+      border: 1px solid var(--ink);
+      color: var(--ink);
+      transition: background 0.28s, color 0.28s;
+    }
+    .btn-border:hover { background: var(--ink); color: var(--parchment); }
+
+    /* ─────────────────────────────────────────
+       FOOTER
+    ───────────────────────────────────────── */
+    footer {
+      background: var(--ink);
+      color: var(--ink-fg);
+      padding: 5.5rem 3rem 3.5rem;
+    }
+    .footer-grid {
+      max-width: 74rem;
+      margin: 0 auto;
+      display: grid;
+      gap: 3.5rem;
+    }
+    @media (min-width: 800px) { .footer-grid { grid-template-columns: 2fr 1fr 1fr 1fr; } }
+    .footer-brand {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 300;
+      font-size: 1.6rem;
+      line-height: 1.1;
+      margin-bottom: 1.1rem;
+    }
+    .footer-desc { font-size: 0.82rem; opacity: 0.6; line-height: 1.75; }
+    .footer-col-hd {
+      font-family: 'Inter Tight', sans-serif;
+      font-size: 0.58rem;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      opacity: 0.42;
+      margin-bottom: 1.1rem;
+    }
+    .footer-list { list-style: none; display: flex; flex-direction: column; gap: 0.55rem; }
+    .footer-list a { font-size: 0.82rem; text-decoration: none; color: inherit; opacity: 0.65; }
+    .footer-list a:hover { opacity: 1; }
+    .footer-list li { font-size: 0.82rem; opacity: 0.6; line-height: 1.5; }
+    .footer-copy {
+      max-width: 74rem;
+      margin: 4rem auto 0;
+      padding-top: 1.5rem;
+      border-top: 1px solid rgba(237,229,208,0.08);
+      font-size: 0.72rem;
+      opacity: 0.38;
+      line-height: 1.6;
+    }
+
+    /* ─────────────────────────────────────────
+       ANIMATION UTILS
+    ───────────────────────────────────────── */
+    .reveal { opacity: 0; transform: translateY(20px); }
+  </style>
+</head>
+<body>
+
+  <!-- Film grain -->
+  <div id="grain"></div>
+
+  <!-- Letterbox bars -->
+  <div class="lb lb-top" id="lbTop"></div>
+  <div class="lb lb-bot" id="lbBot"></div>
+
+  <!-- Loading -->
+  <div id="loader">
+    <div class="loader-name">Blue Ocean Conservancy</div>
+    <div class="loader-bar"><div class="loader-fill" id="loaderFill"></div></div>
+  </div>
+
+  <!-- Nav -->
+  <nav class="site-nav" id="nav">
+    <a href="#" class="nav-brand">
+      Blue Ocean Conservancy
+      <small>Marine grantmaker · Singapore</small>
+    </a>
+    <ul class="nav-links">
+      <li><a href="#">Mission</a></li>
+      <li><a href="#">Programs</a></li>
+      <li><a href="#">Impact</a></li>
+      <li><a href="#">Dispatches</a></li>
+    </ul>
+    <a href="#" class="nav-cta">Get Involved</a>
+  </nav>
+
+  <!-- ═══ HERO ═══ -->
+  <section class="hero" id="hero">
+    <!-- Coral reef autoplay loop -->
+    <video class="hero-video"
+      src="https://cdn.pixabay.com/video/2026/08/21/371852_large.mp4"
+      autoplay muted loop playsinline preload="auto">
+    </video>
+    <div class="hero-grade"></div>
+    <div class="hero-tint"></div>
+
+    <div class="hero-content">
+      <div class="hero-eyebrow">Marine grantmaker · Singapore · Est. 2024</div>
+      <h1 class="hero-title">Blue Ocean<br />Conservancy</h1>
+      <p class="hero-tagline">
+        The ocean is not a resource.<br />It is a place people come from.
+      </p>
+      <div class="hero-actions">
+        <a href="#" class="btn-fill">See the work</a>
+        <a href="#" class="btn-ghost">How we fund it</a>
+      </div>
+    </div>
+
+    <div class="scroll-cue">
+      <span>Scroll</span>
+      <div class="scroll-needle"></div>
+    </div>
+  </section>
+
+  <!-- ═══ PINNED SCROLL SCRUB ═══ -->
+  <!-- Replace src with your own footage for production -->
+  <div class="pin-wrap" id="pinSection">
+    <video id="scrubVideo" class="scrub-video"
+      src="https://cdn.pixabay.com/video/2024/12/03/244754_large.mp4"
+      muted playsinline preload="auto">
+    </video>
+
+    <div class="pin-grade"></div>
+
+    <div class="pin-texts">
+
+      <div class="ot" id="ot1">
+        <div class="ot-label">The reason</div>
+        <h2 class="ot-title">The ocean is not<br />a resource.</h2>
+        <p class="ot-sub">It is a place people come from.</p>
+      </div>
+
+      <div class="ot" id="ot2">
+        <div class="ot-label">The reef</div>
+        <h2 class="ot-title">Half the world's<br />coral — <em>already gone.</em></h2>
+        <p class="ot-sub">What disappears with it is a nursery.<br />The place where a coastline's fish are born.</p>
+      </div>
+
+      <div class="ot" id="ot3">
+        <div class="ot-label">The forest</div>
+        <h2 class="ot-title">A third of all<br /><em>mangroves cleared.</em></h2>
+        <p class="ot-sub">Storm wall. Crab beds. Carbon store.<br />All at once. All gone.</p>
+      </div>
+
+      <div class="ot" id="ot4">
+        <div class="ot-label">The gap</div>
+        <h2 class="ot-title">Less than 1%<br />of philanthropy<br /><em>reaches them.</em></h2>
+        <p class="ot-sub">In every one of those places,<br />someone is already there. Nobody is funding them.</p>
+      </div>
+
+      <div class="ot" id="ot5">
+        <div class="ot-label">Blue Ocean Conservancy</div>
+        <h2 class="ot-title">We fund the people<br /><em>already in the water.</em></h2>
+        <p class="ot-sub">Quickly. Honestly. Without asking them<br />to become something they're not.</p>
+      </div>
+
+    </div>
+
+    <div class="pin-progress">
+      <div class="pin-progress-track">
+        <div class="pin-progress-fill" id="progressFill"></div>
+      </div>
+      <div class="pin-progress-label">Scroll to explore</div>
+    </div>
+  </div>
+
+  <!-- ═══ NARRATIVE BAND ═══ -->
+  <div class="narrative">
+    <div class="narrative-inner">
+      <div class="reveal">
+        <p>
+          We back the outcome, not the paperwork. If a village cooperative, a dive shop,
+          a university lab or a five-person NGO is the right hands for a stretch of coast,
+          that is who we want to fund.
+        </p>
+        <p>
+          Too much conservation money can only travel to a certain kind of organisation —
+          slowly, across borders, through people who have never stood on the beach in question.
+          Meanwhile the crew who could have fixed it this season gives up and takes other work.
+        </p>
+        <a href="#" class="narrative-link">Why we exist →</a>
+      </div>
+      <div class="reveal">
+        <p>
+          A coastline is only protected for as long as the people living on it are able to
+          protect it. Livelihoods, teaching, research and training aren't side projects for us —
+          they are the work itself.
+        </p>
+        <p>
+          Based in Singapore. Working wherever there is saltwater and someone worth backing.
+          We wrote all of our governance down before we raised a single cent.
+        </p>
+        <a href="#" class="narrative-link">Read our principles →</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ WHAT'S HAPPENING ═══ -->
+  <div class="section">
+    <div class="section-inner">
+      <div style="margin-bottom:3rem">
+        <div class="eyebrow reveal">What's happening</div>
+        <h2 style="font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(2.2rem,5vw,4rem);margin-top:0.75rem" class="reveal">
+          Three things you can watch<br />happen in a lifetime
+        </h2>
+      </div>
+      <div class="problem-grid">
+        <div class="problem-card reveal">
+          <h3>A reef goes quiet</h3>
+          <p>Half the world's coral is already bleached, broken or gone. What disappears with it is a nursery — the place where a coastline's fish are born.</p>
+          <a href="#" class="card-link">Read the reef stories →</a>
+        </div>
+        <div class="problem-card reveal">
+          <h3>A forest in the tide</h3>
+          <p>More than a third of the world's mangroves have been cleared since the 1980s. They were the storm wall, the crab beds, the carbon store, all at once.</p>
+          <a href="#" class="card-link">Explore the findings →</a>
+        </div>
+        <div class="problem-card reveal">
+          <h3>The people already trying</h3>
+          <p>In every one of those places someone is already replanting, patrolling, counting. Less than one percent of philanthropy ever reaches them.</p>
+          <a href="#" class="card-link">Why we exist →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ STATS ═══ -->
+  <div class="section section-ink">
+    <div class="section-inner">
+      <div style="margin-bottom:3.5rem">
+        <div class="eyebrow reveal">The scale of it</div>
+        <h2 style="font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(2rem,4.5vw,3.5rem);margin-top:0.75rem;color:var(--ink-fg)" class="reveal">
+          What the numbers say
+        </h2>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card reveal">
+          <div class="stat-num">50%</div>
+          <div class="stat-label">of coral reefs lost or degraded</div>
+        </div>
+        <div class="stat-card reveal">
+          <div class="stat-num">35%</div>
+          <div class="stat-label">of mangroves cleared since the 1980s</div>
+        </div>
+        <div class="stat-card reveal">
+          <div class="stat-num">44%</div>
+          <div class="stat-label">of reef-building corals at risk of extinction</div>
+        </div>
+        <div class="stat-card reveal">
+          <div class="stat-num">8M</div>
+          <div class="stat-label">metric tons of plastic enter the ocean each year</div>
+        </div>
+        <div class="stat-card reveal">
+          <div class="stat-num">90%</div>
+          <div class="stat-label">of excess warming heat absorbed by the ocean</div>
+        </div>
+        <div class="stat-card reveal">
+          <div class="stat-num">$15.8B</div>
+          <div class="stat-label">needed annually to protect 30% of the ocean by 2030</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ PROGRAMS ═══ -->
+  <section class="programs" id="programs">
+    <div class="programs-hd reveal">
+      <div class="eyebrow">The work</div>
+      <h2>Five places to start</h2>
+      <p>These are the coasts and questions our first funding will go to — chosen because the people there are ready and the window is closing.</p>
+    </div>
+
+    <div class="program-row reveal">
+      <div class="program-bg prog-1"></div>
+      <div class="program-scrim"></div>
+      <div class="program-body">
+        <div class="eyebrow">Asia-Pacific reef systems</div>
+        <h3>Coral Reef Restoration</h3>
+        <p>Nurseries and reef rehabilitation delivered by dive operators, universities and community groups already in the water.</p>
+      </div>
+    </div>
+
+    <div class="program-row reveal">
+      <div class="program-bg prog-2"></div>
+      <div class="program-scrim"></div>
+      <div class="program-body">
+        <div class="eyebrow">Coastal Southeast Asia and beyond</div>
+        <h3>Mangrove Reforestation</h3>
+        <p>Community-led replanting and long-term stewardship, where storm protection, fisheries and blue carbon come from the same hectare.</p>
+      </div>
+    </div>
+
+    <div class="program-row reveal">
+      <div class="program-bg prog-3"></div>
+      <div class="program-scrim"></div>
+      <div class="program-body">
+        <div class="eyebrow">Small-scale coastal fisheries worldwide</div>
+        <h3>Community-Based Fisheries</h3>
+        <p>Locally-managed fisheries and MPA co-management — protection that pays the people who enforce it.</p>
+      </div>
+    </div>
+
+    <div class="program-row reveal">
+      <div class="program-bg prog-4"></div>
+      <div class="program-scrim"></div>
+      <div class="program-body">
+        <div class="eyebrow">Global, Indo-Pacific priority</div>
+        <h3>Marine Research &amp; Monitoring</h3>
+        <p>The unglamorous baseline monitoring nobody else funds — because grantmaking is only as good as the evidence behind it.</p>
+      </div>
+    </div>
+
+    <div class="program-row reveal">
+      <div class="program-bg prog-5"></div>
+      <div class="program-scrim"></div>
+      <div class="program-body">
+        <div class="eyebrow">Coastal schools and fishing villages</div>
+        <h3>Ocean Education</h3>
+        <p>Getting the next generation into the water with a mask on — because nobody protects a reef they have never seen.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ PULL QUOTE ═══ -->
+  <div class="pullquote">
+    <div class="pq-bg"></div>
+    <div class="pq-vignette"></div>
+    <div class="pq-content reveal">
+      <div class="pq-rule"></div>
+      <blockquote>
+        "We stopped fishing the bay for three years. Everyone said we were mad.
+        Then the fish came back, and so did our sons."
+      </blockquote>
+      <cite>The pattern we keep finding, on coast after coast</cite>
+    </div>
+  </div>
+
+  <!-- ═══ IMPACT KPIs ═══ -->
+  <div class="section section-ink">
+    <div class="section-inner">
+      <div style="margin-bottom:3.5rem">
+        <div class="eyebrow reveal">How we'll know it worked</div>
+        <h2 style="font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(2rem,4.5vw,3.5rem);margin-top:0.75rem;color:var(--ink-fg)" class="reveal">
+          Six things we ask every<br />project to tell us
+        </h2>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi-card reveal">
+          <div class="kpi-num">01</div>
+          <div class="kpi-lbl">Hectares of habitat brought back</div>
+          <div class="kpi-note">The world has lost roughly a third of its mangroves since 1980.</div>
+        </div>
+        <div class="kpi-card reveal">
+          <div class="kpi-num">02</div>
+          <div class="kpi-lbl">Species and nesting sites protected</div>
+          <div class="kpi-note">Six of the seven sea turtle species are threatened with extinction.</div>
+        </div>
+        <div class="kpi-card reveal">
+          <div class="kpi-num">03</div>
+          <div class="kpi-lbl">Young people brought into the water</div>
+          <div class="kpi-note">Most children in a fishing village have never seen the reef beside their home.</div>
+        </div>
+        <div class="kpi-card reveal">
+          <div class="kpi-num">04</div>
+          <div class="kpi-lbl">Households and livelihoods supported</div>
+          <div class="kpi-note">Around 500 million people depend on small-scale fisheries for food or income.</div>
+        </div>
+        <div class="kpi-card reveal">
+          <div class="kpi-num">05</div>
+          <div class="kpi-lbl">What we learned, shared openly</div>
+          <div class="kpi-note">Less than a quarter of the seafloor has been mapped in any real detail.</div>
+        </div>
+        <div class="kpi-card reveal">
+          <div class="kpi-num">06</div>
+          <div class="kpi-lbl">Carbon the coast holds again</div>
+          <div class="kpi-note">A single hectare of mangrove can hold up to 1,000 tonnes of carbon.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ CTA ═══ -->
+  <div class="cta">
+    <h2>Come build this<br /><em>with us.</em></h2>
+    <p>
+      Founding members, directors, funders and partners — the coast doesn't need another logo,
+      it needs people who'll stay.
+    </p>
+    <a href="#" class="btn-border">Get Involved</a>
+  </div>
+
+  <!-- ═══ FOOTER ═══ -->
+  <footer>
+    <div class="footer-grid">
+      <div>
+        <div class="footer-brand">Blue Ocean<br />Conservancy</div>
+        <p class="footer-desc">
+          A Singapore Company Limited by Guarantee, to be registered under the Grantmaker Scheme.
+          Funding the protection, restoration and sustainable use of marine and coastal ecosystems worldwide.
+        </p>
+      </div>
+      <div>
+        <div class="footer-col-hd">Programs</div>
+        <ul class="footer-list">
+          <li><a href="#">Coral Reef Restoration</a></li>
+          <li><a href="#">Mangrove Reforestation</a></li>
+          <li><a href="#">Community Fisheries</a></li>
+          <li><a href="#">Marine Research</a></li>
+          <li><a href="#">Ocean Education</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="footer-col-hd">Organisation</div>
+        <ul class="footer-list">
+          <li><a href="#">Mission</a></li>
+          <li><a href="#">Grantmaking</a></li>
+          <li><a href="#">Impact</a></li>
+          <li><a href="#">Governance</a></li>
+          <li><a href="#">Dispatches</a></li>
+          <li><a href="#">FAQ</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="footer-col-hd">Contact</div>
+        <ul class="footer-list">
+          <li>Registered office: Singapore</li>
+          <li>General enquiries: TBD</li>
+          <li>Grant proposals: TBD</li>
+          <li>Founding membership: TBD</li>
+        </ul>
+        <p style="margin-top:1.5rem;font-size:0.75rem;opacity:0.42;line-height:1.7">
+          Not soliciting funds until incorporation and registration are complete.
+        </p>
+      </div>
+    </div>
+    <p class="footer-copy">
+      © 2024 Blue Ocean Conservancy Limited (pre-incorporation). Figures cited are indicative and drawn from
+      widely-published marine conservation and philanthropy research; precise sourcing to be finalised.
+    </p>
+  </footer>
+
+
+  <script>
+    gsap.registerPlugin(ScrollTrigger);
+
+    // ── Nav scroll state ──────────────────────────
+    window.addEventListener('scroll', () => {
+      document.getElementById('nav').classList.toggle('scrolled', window.scrollY > 60);
+    }, { passive: true });
+
+    // ── Scrub video loader ─────────────────────────
+    const scrubVideo = document.getElementById('scrubVideo');
+    const loader     = document.getElementById('loader');
+    const loaderFill = document.getElementById('loaderFill');
+    const lbTop      = document.getElementById('lbTop');
+    const lbBot      = document.getElementById('lbBot');
+
+    scrubVideo.addEventListener('progress', () => {
+      if (scrubVideo.buffered.length && scrubVideo.duration) {
+        loaderFill.style.width =
+          Math.min((scrubVideo.buffered.end(0) / scrubVideo.duration) * 100, 100) + '%';
+      }
+    });
+
+    function init() {
+      // ── Dismiss loader ──
+      gsap.to('#loader', { opacity: 0, duration: 1.2, ease: 'power2.inOut', onComplete: () => {
+        loader.classList.add('gone');
+      }});
+
+      // ── Hero entrance ──
+      gsap.from('.hero-content > *', {
+        opacity: 0, y: 30, stagger: 0.18, duration: 1.2, ease: 'power3.out', delay: 0.3
+      });
+
+      // ── Letterbox bars animate IN when pin section is active ──
+      ScrollTrigger.create({
+        trigger: '#pinSection',
+        start: 'top 80%',
+        end: 'bottom top',
+        onEnter:     () => gsap.to([lbTop, lbBot], { scaleY: 1, duration: 0.7, ease: 'power3.inOut', stagger: 0.08 }),
+        onLeave:     () => gsap.to([lbTop, lbBot], { scaleY: 0, duration: 0.5, ease: 'power2.in' }),
+        onEnterBack: () => gsap.to([lbTop, lbBot], { scaleY: 1, duration: 0.5, ease: 'power2.out' }),
+        onLeaveBack: () => gsap.to([lbTop, lbBot], { scaleY: 0, duration: 0.5, ease: 'power2.in' }),
+      });
+
+      // ── Main pinned scroll scrub timeline ──
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: '#pinSection',
+          start: 'top top',
+          end: '+=550%',
+          pin: true,
+          scrub: 1.4,
+          anticipatePin: 1,
+        }
+      });
+
+      // Video currentTime scrub
+      tl.to(scrubVideo, {
+        currentTime: scrubVideo.duration || 12,
+        ease: 'none',
+        duration: 1,
+      }, 0);
+
+      // Progress fill
+      tl.to('#progressFill', { width: '100%', ease: 'none', duration: 1 }, 0);
+
+      // Text overlay panels
+      const panels = [
+        { id: '#ot1', at: 0.00 },
+        { id: '#ot2', at: 0.20 },
+        { id: '#ot3', at: 0.40 },
+        { id: '#ot4', at: 0.58 },
+        { id: '#ot5', at: 0.80 },
+      ];
+
+      panels.forEach(({ id, at }) => {
+        tl.fromTo(id,
+          { opacity: 0, y: 16 },
+          { opacity: 1, y: 0, duration: 0.065, ease: 'power2.out' },
+          at
+        );
+        tl.to(id,
+          { opacity: 0, y: -16, duration: 0.065, ease: 'power2.in' },
+          at + 0.135
+        );
+      });
+
+      // Hero fades as user scrolls away
+      gsap.to('#hero', {
+        opacity: 0,
+        scrollTrigger: {
+          trigger: '#hero',
+          start: 'bottom 85%',
+          end: 'bottom 15%',
+          scrub: true,
+        }
+      });
+
+      // Grain intensifies during pin section
+      ScrollTrigger.create({
+        trigger: '#pinSection',
+        start: 'top top',
+        end: 'bottom top',
+        onEnter:     () => gsap.to('#grain', { opacity: 0.09, duration: 0.5 }),
+        onLeave:     () => gsap.to('#grain', { opacity: 0.06, duration: 0.5 }),
+        onEnterBack: () => gsap.to('#grain', { opacity: 0.09, duration: 0.5 }),
+        onLeaveBack: () => gsap.to('#grain', { opacity: 0.06, duration: 0.5 }),
+      });
+
+      // ── Reveal animations for editorial sections ──
+      gsap.utils.toArray('.reveal').forEach(el => {
+        gsap.to(el, {
+          opacity: 1,
+          y: 0,
+          duration: 0.85,
+          ease: 'power2.out',
+          scrollTrigger: { trigger: el, start: 'top 84%' }
+        });
+      });
+    }
+
+    // Start once video has enough metadata for duration
+    if (scrubVideo.readyState >= 1) {
+      init();
+    } else {
+      scrubVideo.addEventListener('loadedmetadata', init, { once: true });
+      setTimeout(() => { if (!loader.classList.contains('gone')) init(); }, 5000);
+    }
+  </script>
+</body>
+</html>
